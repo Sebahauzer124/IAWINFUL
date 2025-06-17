@@ -1,9 +1,11 @@
 const { MongoClient } = require('mongodb');
 const xlsx = require('xlsx');
 const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
+
 
 // Pega aquí tu URI de conexión de MongoDB Atlas
-const uri = 'mongodb+srv://twilio:twilio@ventas.bdk0kxu.mongodb.net/?retryWrites=true&w=majority&appName=ventas';
+const uri = process.env.MONGO_URI;
 
 async function subirExcelAMongo() {
   const client = new MongoClient(uri);
