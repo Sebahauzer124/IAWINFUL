@@ -61,8 +61,9 @@ app.post('/webhook', async (req, res) => {
 - CCC MKT: ${encontrado.mkt || 'N/D'}
 - GESTION CARTERA MKT: ${encontrado.gestion || 'N/D'}
 - NIVEL DE DIGITALIZACION: ${encontrado.digitalizacion || 'N/D'}
-- VMO CERVEZA: ${!isNaN(parseFloat(encontrado.vmocer)) ? (parseFloat(encontrado.vmocer) * 100).toFixed(2) + '%' : 'N/D'}
-- VMO UNG: ${!isNaN(parseFloat(encontrado.vmoung)) ? (parseFloat(encontrado.vmoung) * 100).toFixed(2) + '%' : 'N/D'}
+- VMO CERVEZA: ${!isNaN(parseFloat(encontrado.vmocer)) && isFinite(encontrado.vmocer) ? (parseFloat(encontrado.vmocer) * 100).toFixed(2) + '%' : encontrado.vmocer}
+- VMO UNG: ${!isNaN(parseFloat(encontrado.vmoung)) && isFinite(encontrado.vmoung) ? (parseFloat(encontrado.vmoung) * 100).toFixed(2) + '%' : encontrado.vmoung}
+
 
 -PARA VER EL BRAND DISTRIBUTION INGRESA A :
 https://sku-0irz.onrender.com/
