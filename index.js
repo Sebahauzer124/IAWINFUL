@@ -25,6 +25,20 @@ app.post('/webhook', async (req, res) => {
   const incomingMsg = req.body.Body?.toLowerCase().trim();
   const from = req.body.From;
   let respuestaFinal = '';
+  function formatearCoordenada(cruda) {
+    let coordStr = String(cruda).replace(/[,\s]/g, ''); // Quitar comas y espacios
+    if (!coordStr.startsWith('-')) coordStr = '+' + coordStr;
+
+    const signo = coordStr.startsWith('-') ? '-' : '';
+    const soloNumeros = coordStr.replace('-', '').replace('+', '');
+
+    const parteEntera = soloNumeros.slice(0, 2); // Primeros 2 dígitos
+    const parteDecimal = soloNumeros.slice(2);   // El resto
+
+    // Devuelve solo 6 decimales
+    return `${signo}${parteEntera}.${parteDecimal}`.slice(0, parteEntera.length + 1 + 6);
+  }
+
 
   console.log(`📨 Mensaje recibido de ${from}: ${incomingMsg}`);
   console.log('📦 Estado actual:', estadoUsuario);
@@ -76,8 +90,9 @@ https://tareascreaciondevalor.onrender.com/`;
           let enlaceMaps = 'N/D';
 
           if (coordX !== 'N/D' && coordY !== 'N/D') {
-            const lon = (parseFloat(coordX) / 1000000).toFixed(6);
-            const lat = (parseFloat(coordY) / 1000000).toFixed(6);
+            const lon = formatearCoordenada(coordX);
+            const lat = formatearCoordenada(coordY);
+
             enlaceMaps = `https://www.google.com/maps/place/${lat},${lon}`;
             console.log('🗺️ Enlace generado por coordenadas:', enlaceMaps);
           } else if (encontrado.direccion) {
