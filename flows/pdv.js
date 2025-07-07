@@ -41,8 +41,8 @@ module.exports = async function flujoPDV(incomingMsg, from, estadoUsuario) {
 
     if (!encontrado) return `No se encontró información para el PDV ${pdvSolicitado}.`;
 
-    if (mensaje.includes("ventas")) {
-      return `PDV ${pdvSolicitado} Ventas:
+   if (mensaje.includes("ventas")) {
+  return `PDV ${pdvSolicitado} Ventas:
 - Razón Social: ${encontrado.razon || 'N/D'}
 - Promotor: ${encontrado.promotor || 'N/D'}
 - CANJES: ${encontrado.CANJES || 'N/D'}
@@ -55,9 +55,18 @@ module.exports = async function flujoPDV(incomingMsg, from, estadoUsuario) {
 - CCC MKT: ${encontrado.mkt || 'N/D'}
 - GESTIÓN CARTERA MKT: ${encontrado.gestion || 'N/D'}
 - NIVEL DE DIGITALIZACIÓN: ${encontrado.digitalizacion || 'N/D'}
-- VMO CERVEZA: ${!isNaN(parseFloat(encontrado.vmocer)) ? (parseFloat(encontrado.vmocer) * 100).toFixed(2) + '%' : 'N/D'}
-- VMO UNG: ${!isNaN(parseFloat(encontrado.vmoung)) ? (parseFloat(encontrado.vmoung) * 100).toFixed(2) + '%' : 'N/D'}`;
-    } else {
+- VMO CERVEZA: ${
+    !isNaN(parseFloat(encontrado.vmocer))
+      ? (parseFloat(encontrado.vmocer) * 100).toFixed(2) + '%'
+      : (encontrado.vmocer || 'N/D')
+  }
+- VMO UNG: ${
+    !isNaN(parseFloat(encontrado.vmoung))
+      ? (parseFloat(encontrado.vmoung) * 100).toFixed(2) + '%'
+      : (encontrado.vmoung || 'N/D')
+  }`;
+}
+ else {
       const lon = formatearCoordenada(encontrado.x);
       const lat = formatearCoordenada(encontrado.y);
       const maps = lon && lat ? `https://www.google.com/maps/place/${lat},${lon}` : 'N/D';
