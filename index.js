@@ -52,17 +52,27 @@ app.post('/webhook', async (req, res) => {
 }
 
 if (incomingMsg.toLowerCase() === 'censo') {
-  estadoConversacion[from] = { paso: 'censo_esperando_tipo_filtro' };
+  estadoConversacion[from] = { paso: 'censo_esperando_canal' };
+  respuestaFinal = '¿Sobre qué *canal* querés saber?';
+  console.log(`[${from}] Inicio de conversación CENSO, pido canal`);
+}
+
+else if (estadoConversacion[from]?.paso === 'censo_esperando_canal') {
+  estadoConversacion[from].canal = incomingMsg.toUpperCase().trim();
+  estadoConversacion[from].paso = 'censo_esperando_tipo_filtro';
   respuestaFinal = '¿Querés saber por *localidad* o por *vendedor*?';
+  console.log(`[${from}] Canal recibido: ${estadoConversacion[from].canal}, pido tipo filtro`);
 }
 
 else if (estadoConversacion[from]?.paso === 'censo_esperando_tipo_filtro') {
-  const eleccion = incomingMsg.toLowerCase();
+  const eleccion = incomingMsg.toLowerCase().trim();
+  console.log(`[${from}] Tipo de filtro recibido: ${eleccion}`);
+
   if (eleccion === 'localidad') {
-    estadoConversacion[from] = { paso: 'censo_esperando_localidad' };
+    estadoConversacion[from].paso = 'censo_esperando_localidad';
     respuestaFinal = 'Indicá la *localidad* que querés analizar:';
   } else if (eleccion === 'vendedor') {
-    estadoConversacion[from] = { paso: 'censo_esperando_vendedor' };
+    estadoConversacion[from].paso = 'censo_esperando_vendedor';
     respuestaFinal = 'Indicá el *nombre del vendedor* que querés analizar:';
   } else {
     respuestaFinal = 'Por favor respondé *localidad* o *vendedor*';
@@ -70,120 +80,132 @@ else if (estadoConversacion[from]?.paso === 'censo_esperando_tipo_filtro') {
 }
 
 else if (estadoConversacion[from]?.paso === 'censo_esperando_localidad') {
-  estadoConversacion[from].localidad = incomingMsg;
+  estadoConversacion[from].localidad = incomingMsg.trim();
   estadoConversacion[from].paso = 'censo_esperando_tipo';
   respuestaFinal = '¿Querés saber dónde *crecemos* o dónde *caemos*?';
+  console.log(`[${from}] Localidad recibida: ${estadoConversacion[from].localidad}, pido tipo de análisis`);
 }
 
 else if (estadoConversacion[from]?.paso === 'censo_esperando_vendedor') {
-  estadoConversacion[from].vendedor = incomingMsg;
+  estadoConversacion[from].vendedor = incomingMsg.trim();
   estadoConversacion[from].paso = 'censo_esperando_tipo_vendedor';
   respuestaFinal = '¿Querés saber dónde *crecemos* o dónde *caemos*?';
+  console.log(`[${from}] Vendedor recibido: ${estadoConversacion[from].vendedor}, pido tipo de análisis`);
 }
 
 else if (
   estadoConversacion[from]?.paso === 'censo_esperando_tipo' ||
   estadoConversacion[from]?.paso === 'censo_esperando_tipo_vendedor'
 ) {
-  const tipo = incomingMsg.toLowerCase();
-  const esPorLocalidad = estadoConversacion[from]?.paso === 'censo_esperando_tipo';
+  const tipo = incomingMsg.toLowerCase().trim();
+  const esPorLocalidad = estadoConversacion[from].paso === 'censo_esperando_tipo';
   const filtro = esPorLocalidad ? 'LOCALIDAD' : 'vendedor';
   const valorFiltro = estadoConversacion[from][esPorLocalidad ? 'localidad' : 'vendedor'];
+  const canalFiltro = estadoConversacion[from].canal || '';
   const valorNormalizado = normalizarTexto(valorFiltro.toString());
+
+  console.log(`[${from}] Tipo análisis recibido: ${tipo}`);
+  console.log(`[${from}] Buscando en filtro: ${filtro} valor: ${valorFiltro} (normalizado: ${valorNormalizado}) canal: ${canalFiltro}`);
 
   if (tipo !== 'crecemos' && tipo !== 'caemos') {
     respuestaFinal = 'Por favor respondé *crecemos* o *caemos*.';
+    console.log(`[${from}] Tipo de análisis inválido`);
   } else {
-    const valoresDB = await censo.distinct(filtro);
-    console.log(`${filtro}s en DB:`, valoresDB);
-    const countVendedor = await censo.countDocuments({ vendedor: { $exists: true, $ne: null, $ne: '' } });
-console.log('Cantidad documentos con VENDEDOR:', countVendedor);
+    try {
+      // Obtengo valores únicos del filtro para el canal dado
+      const valoresDB = await censo.distinct(filtro, { 'canal': canalFiltro });
+      console.log(`[${from}] Valores únicos encontrados para filtro "${filtro}":`, valoresDB);
 
+      // Busco coincidencia exacta normalizada
+      const coincidencia = valoresDB.find(v => normalizarTexto(v.toString()) === valorNormalizado);
 
-    // Comparación usando texto normalizado
-    const coincidencia = valoresDB.find(v => normalizarTexto(v.toString()) === valorNormalizado);
-
-    if (!coincidencia) {
-      const sugerencias = valoresDB
-        .filter(v =>
-          normalizarTexto(v.toString()).includes(valorNormalizado.slice(0, 4))
-        )
-        .slice(0, 5);
-      respuestaFinal =
-        `⚠️ No encontré datos para ${esPorLocalidad ? 'la localidad' : 'el vendedor'} "${valorFiltro}".\n\n¿Quisiste decir alguna de estas?\n\n` +
-        sugerencias.join('\n');
-    } else {
-      const datos = await censo.find({ [filtro]: coincidencia });
-
-      if (datos.length === 0) {
-        respuestaFinal = `No encontré datos para ${esPorLocalidad ? 'la localidad' : 'el vendedor'} "${valorFiltro}".`;
+      if (!coincidencia) {
+        const sugerencias = valoresDB
+          .filter(v => normalizarTexto(v.toString()).includes(valorNormalizado.slice(0, 4)))
+          .slice(0, 5);
+        respuestaFinal =
+          `⚠️ No encontré datos para ${esPorLocalidad ? 'la localidad' : 'el vendedor'} "${valorFiltro}" en el canal "${canalFiltro}".\n\n¿Quisiste decir alguna de estas?\n\n` +
+          sugerencias.join('\n');
+        console.log(`[${from}] No se encontró coincidencia exacta. Sugerencias:`, sugerencias);
       } else {
-        const puntos = datos.filter(d => parseFloat(d["volumen 2024"]) > 0);
+        const datos = await censo.find({ [filtro]: coincidencia, 'canal': canalFiltro });
+        console.log(`[${from}] Documentos encontrados: ${datos.length}`);
 
-        if (puntos.length === 0) {
-          respuestaFinal = `No hay puntos con volumen 2024 mayor a 0 en "${valorFiltro}".`;
+        if (datos.length === 0) {
+          respuestaFinal = `No encontré datos para ${esPorLocalidad ? 'la localidad' : 'el vendedor'} "${valorFiltro}" en el canal "${canalFiltro}".`;
         } else {
-          let diffs = puntos.map(d => {
-            const vol2024 = parseFloat(d["volumen 2024"]) || 0;
-            const vol2025 = parseFloat(d["volumen 2025"]) || 0;
-            const diferencia = vol2025 - vol2024;
+          const puntos = datos.filter(d => parseFloat(d["volumen 2024"]) > 0);
+          console.log(`[${from}] Puntos con volumen 2024 > 0: ${puntos.length}`);
 
-            const lon = d.x ? (parseFloat(d.x) / 1e6).toFixed(6) : null;
-            const lat = d.y ? (parseFloat(d.y) / 1e6).toFixed(6) : null;
-            const maps = lon && lat ? `https://www.google.com/maps/place/${lat},${lon}` : 'N/D';
-
-            const ccu = (parseFloat(d["CCU abril25"]) || 0).toFixed(1);
-            const cmq = (parseFloat(d["CMQ abril25"]) || 0).toFixed(1);
-            const otros = (parseFloat(d["OTROS abril25"]) || 0).toFixed(1);
-
-            const share = d["SHARE CMQ"] ? (parseFloat(d["SHARE CMQ"]) * 100).toFixed(2) + '%' : '0.00%';
-            const sharesep24 = d["SHARE CMQ sep24"] ? (parseFloat(d["SHARE CMQ sep24"]) * 100).toFixed(2) + '%' : '0.00%';
-            const shareabril24 = d["SHARE CMQ abril24"] ? (parseFloat(d["SHARE CMQ abril24"]) * 100).toFixed(2) + '%' : '0.00%';
-
-            return {
-              pdv: d.pdv || d.cliente || d["razon"] || 'Sin nombre',
-              diferencia,
-              maps,
-              ccu,
-              cmq,
-              otros,
-              share,
-              sharesep24,
-              shareabril24
-            };
-          });
-
-          // Filtrar por tipo (caemos/crecemos)
-          if (tipo === 'caemos') {
-            diffs = diffs.filter(d => d.diferencia < 0).sort((a, b) => a.diferencia - b.diferencia);
+          if (puntos.length === 0) {
+            respuestaFinal = `No hay puntos con volumen 2024 mayor a 0 en "${valorFiltro}" para el canal "${canalFiltro}".`;
           } else {
-            diffs = diffs.filter(d => d.diferencia > 0).sort((a, b) => b.diferencia - a.diferencia);
-          }
+            let diffs = puntos.map(d => {
+              const vol2024 = parseFloat(d["volumen 2024"]) || 0;
+              const vol2025 = parseFloat(d["volumen 2025"]) || 0;
+              const diferencia = vol2025 - vol2024;
 
-          if (diffs.length === 0) {
-            respuestaFinal = `No se encontraron puntos que ${tipo} en "${valorFiltro}".`;
-          } else {
-            const top5 = diffs.slice(0, 5);
-            respuestaFinal =
-              `📊 Top 5 puntos donde ${tipo} en "${valorFiltro}":\n\n` +
-              top5.map(p =>
-                `• ${p.pdv}\n` +
-                `  ↪ Diferencia: ${p.diferencia.toFixed(2)} hL\n` +
-                `  ↪ Ubicación: ${p.maps}\n` +
-                `  ↪ CCU [hL]: ${p.ccu}\n` +
-                `  ↪ CMQ [hL]: ${p.cmq}\n` +
-                `  ↪ OTROS [hL]: ${p.otros}\n` +
-                `  ↪ SHARE CMQ: ${p.share}\n` +
-                `  ↪ SHARE CMQ vs sep24: ${p.sharesep24}\n` +
-                `  ↪ SHARE CMQ vs abril24: ${p.shareabril24}`
-              ).join('\n\n');
+              const lon = d.x ? (parseFloat(d.x) / 1e6).toFixed(6) : null;
+              const lat = d.y ? (parseFloat(d.y) / 1e6).toFixed(6) : null;
+              const maps = lon && lat ? `https://www.google.com/maps/place/${lat},${lon}` : 'N/D';
+
+              const ccu = (parseFloat(d["CCU abril25"]) || 0).toFixed(1);
+              const cmq = (parseFloat(d["CMQ abril25"]) || 0).toFixed(1);
+              const otros = (parseFloat(d["OTROS abril25"]) || 0).toFixed(1);
+
+              const share = d["SHARE CMQ"] ? (parseFloat(d["SHARE CMQ"]) * 100).toFixed(2) + '%' : '0.00%';
+              const sharesep24 = d["SHARE CMQ sep24"] ? (parseFloat(d["SHARE CMQ sep24"]) * 100).toFixed(2) + '%' : '0.00%';
+              const shareabril24 = d["SHARE CMQ abril24"] ? (parseFloat(d["SHARE CMQ abril24"]) * 100).toFixed(2) + '%' : '0.00%';
+
+              return {
+                pdv: d.pdv || d.cliente || d["razon"] || 'Sin nombre',
+                diferencia,
+                maps,
+                ccu,
+                cmq,
+                otros,
+                share,
+                sharesep24,
+                shareabril24
+              };
+            });
+
+            if (tipo === 'caemos') {
+              diffs = diffs.filter(d => d.diferencia < 0).sort((a, b) => a.diferencia - b.diferencia);
+            } else {
+              diffs = diffs.filter(d => d.diferencia > 0).sort((a, b) => b.diferencia - a.diferencia);
+            }
+
+            if (diffs.length === 0) {
+              respuestaFinal = `No se encontraron puntos que ${tipo} en "${valorFiltro}" para el canal "${canalFiltro}".`;
+            } else {
+              const top5 = diffs.slice(0, 5);
+              respuestaFinal =
+                `📊 Top 5 puntos donde ${tipo} en "${valorFiltro}" (Canal: ${canalFiltro}):\n\n` +
+                top5.map(p =>
+                  `• ${p.pdv}\n` +
+                  `  ↪ Diferencia: ${p.diferencia.toFixed(2)} hL\n` +
+                  `  ↪ Ubicación: ${p.maps}\n` +
+                  `  ↪ CCU [hL]: ${p.ccu}\n` +
+                  `  ↪ CMQ [hL]: ${p.cmq}\n` +
+                  `  ↪ OTROS [hL]: ${p.otros}\n` +
+                  `  ↪ SHARE CMQ: ${p.share}\n` +
+                  `  ↪ SHARE CMQ vs sep24: ${p.sharesep24}\n` +
+                  `  ↪ SHARE CMQ vs abril24: ${p.shareabril24}`
+                ).join('\n\n');
+            }
           }
         }
       }
+    } catch (error) {
+      console.error(`[${from}] Error en búsqueda de datos:`, error);
+      respuestaFinal = '❌ Ocurrió un error al buscar los datos. Intentá más tarde.';
     }
     delete estadoConversacion[from];
   }
 }
+
+
 
 
 
@@ -334,10 +356,7 @@ console.log('Cantidad documentos con VENDEDOR:', countVendedor);
     }
     // --- FIN FLUJO MORCE ---
 
-    else if (incomingMsg.includes("censo")) {
-      estadoConversacion[from] = { paso: 'censo_esperando_localidad' };
-      respuestaFinal = '¿De qué localidad te interesa saber?';
-    }
+
     else if (incomingMsg.includes("pdv")) {
       const matchPdv = incomingMsg.match(/pdv\s*(\d+)/);
       if (matchPdv) {
