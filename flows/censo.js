@@ -126,8 +126,8 @@ module.exports = async function flujoCenso(incomingMsg, from, estadoConversacion
   ↪ CMQ abril25: ${p.cmq}
   ↪ Otros abril25: ${p.otros}
   ↪ SHARE CMQ: ${p.share}
-  ↪ SHARE sep24: ${p.shareSep24}
-  ↪ SHARE abril24: ${p.shareAbril24}`
+  ↪ SHARE vs sep24: ${p.shareSep24}
+  ↪ SHARE vs abril24: ${p.shareAbril24}`
         ).join('\n\n');
 
       delete estadoConversacion[from];
