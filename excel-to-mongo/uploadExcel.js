@@ -23,7 +23,9 @@ async function subirExcelAMongo() {
     const ventasCollection = db.collection('ventas');
     const logisticaCollection = db.collection('logistica');
     const hoja7Collection = db.collection('morce');
-    const censoCollection = db.collection('censo'); // 🔹 nueva colección
+    const censoCollection = db.collection('censo');
+    const ventasSkuCollection = db.collection('ventassku'); // 🔹 NUEVO
+    const stockCollection = db.collection('stocks');        // 🔹 NUEVO
 
     const filePath = path.join(process.cwd(), 'compromisoBEES.xlsx');
     const workbook = xlsx.readFile(filePath);
@@ -31,7 +33,9 @@ async function subirExcelAMongo() {
     const hojaVentas = xlsx.utils.sheet_to_json(workbook.Sheets['Hoja1']);
     const hojaLogistica = xlsx.utils.sheet_to_json(workbook.Sheets['Hoja2']);
     const hoja7Raw = xlsx.utils.sheet_to_json(workbook.Sheets['Hoja7'], { defval: null });
-    const hoja9 = xlsx.utils.sheet_to_json(workbook.Sheets['Hoja9'], { defval: null }); // 🔹 leer Hoja9
+    const hoja9 = xlsx.utils.sheet_to_json(workbook.Sheets['Hoja9'], { defval: null });
+    const hoja17 = xlsx.utils.sheet_to_json(workbook.Sheets['Hoja17'], { defval: null }); // 🔹
+    const hoja18 = xlsx.utils.sheet_to_json(workbook.Sheets['Hoja18'], { defval: null }); // 🔹
 
     const hoja7 = hoja7Raw.map((fila) => {
       const nuevaFila = { ...fila };
@@ -51,7 +55,9 @@ async function subirExcelAMongo() {
     await ventasCollection.deleteMany({});
     await logisticaCollection.deleteMany({});
     await hoja7Collection.deleteMany({});
-    await censoCollection.deleteMany({}); // 🔹 borrar también censo
+    await censoCollection.deleteMany({});
+    await ventasSkuCollection.deleteMany({}); // 🔹
+    await stockCollection.deleteMany({});     // 🔹
 
     if (hojaVentas.length) {
       await ventasCollection.insertMany(hojaVentas);
@@ -71,6 +77,16 @@ async function subirExcelAMongo() {
     if (hoja9.length) {
       await censoCollection.insertMany(hoja9);
       console.log(`✅ Subidos ${hoja9.length} documentos a la colección censo`);
+    }
+
+    if (hoja17.length) {
+      await ventasSkuCollection.insertMany(hoja17); // 🔹
+      console.log(`✅ Subidos ${hoja17.length} documentos a la colección ventassku`);
+    }
+
+    if (hoja18.length) {
+      await stockCollection.insertMany(hoja18); // 🔹
+      console.log(`✅ Subidos ${hoja18.length} documentos a la colección stocks`);
     }
 
     console.log('🚀 Carga finalizada');
