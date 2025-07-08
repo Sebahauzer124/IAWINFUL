@@ -32,9 +32,10 @@ module.exports = async function flujoSku(incomingMsg, from, estadoConversacion) 
   console.log(`[SKU] Consultando PDV: "${pdv}" (string) y ${pdvNum} (número)`);
 
   try {
-    const ventasPDV = await Ventas.find({
-      $or: [{ pdv: pdv }, { pdv: pdvNum }]
-    });
+  const ventasPDV = await Ventas.find({
+  $or: [{ codigo: pdv }, { codigo: pdvNum }]
+});
+;
 
     console.log(`[SKU] Ventas encontradas para PDV ${pdv}: ${ventasPDV.length}`);
 
