@@ -32,10 +32,10 @@ module.exports = async function flujoSku(incomingMsg, from, estadoConversacion) 
   console.log(`[SKU] Consultando PDV: "${pdv}" (string) y ${pdvNum} (número)`);
 
   try {
-  const ventasPDV = await Ventas.find({
-  $or: [{ codigo: pdv }, { codigo: pdvNum }]
-});
-;
+    // Buscar ventas por código
+    const ventasPDV = await Ventas.find({
+      $or: [{ codigo: pdv }, { codigo: pdvNum }]
+    });
 
     console.log(`[SKU] Ventas encontradas para PDV ${pdv}: ${ventasPDV.length}`);
 
@@ -63,8 +63,9 @@ module.exports = async function flujoSku(incomingMsg, from, estadoConversacion) 
       if (stock <= 0) continue;
       if (!segmentosPermitidos.has(segmentoRaw)) continue;
 
-      const tienePTC = !isNaN(item.ptcmin) || !isNaN(item.ptcmax);
-      if (!tienePTC) continue;
+      const ptcminValido = !isNaN(parseFloat(item.ptcmin));
+      const ptcmaxValido = !isNaN(parseFloat(item.ptcmax));
+      if (!ptcminValido && !ptcmaxValido) continue;
 
       const vencimientoDate = fechaVencimientoToComparable(item.vencimiento);
 
