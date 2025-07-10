@@ -49,7 +49,8 @@ module.exports = async function flujoSku(incomingMsg, from, estadoConversacion) 
       'SUPER PREMIUM',
       'STELLA',
       'ANDES',
-      'UNG'
+      'UNG',
+      'MARKETPLACE',
     ]);
 
     const mejorSkuPorSegmento = {};
