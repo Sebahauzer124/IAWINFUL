@@ -64,7 +64,9 @@ module.exports = async function flujoPDV(incomingMsg, from, estadoUsuario) {
     !isNaN(parseFloat(encontrado.vmoung))
       ? (parseFloat(encontrado.vmoung) * 100).toFixed(2) + '%'
       : (encontrado.vmoung || 'N/D')
-  }`;
+  }
+  
+  tareas : https://tareascreaciondevalor.onrender.com/`;
 }
  else {
       const lon = formatearCoordenada(encontrado.x);
