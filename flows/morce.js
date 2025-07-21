@@ -44,7 +44,10 @@ module.exports = async function flujoInventario(incomingMsg, from, estadoConvers
       case 2: { // Mayor stock en paletas
         const top = getTopN(datos, 'PALETAS', 10);
         resultado = '📦 Top 10 productos con mayor stock en paletas:\n' +
-          top.map(d => `${d.PRODUCTO} (${d.CODIGO}): ${d.PALETAS} paletas`).join('\n');
+          top.map(d => {
+            const fecha = fechaDesdeSerial(d.VencimientoPICKING);
+            return `${d.PRODUCTO} (${d.CODIGO}): ${d.PALETAS} paletas (vence: ${fecha})`;
+          }).join('\n');
         break;
       }
 
@@ -52,7 +55,10 @@ module.exports = async function flujoInventario(incomingMsg, from, estadoConvers
         const negativos = datos.filter(d => parseFloat(d.ROTACIONFEFO) < 0);
         resultado = negativos.length
           ? '⚠️ Productos con rotación negativa:\n' +
-            negativos.slice(0, 10).map(d => `${d.PRODUCTO} (${d.CODIGO}): ${d.ROTACIONFEFO}`).join('\n')
+            negativos.slice(0, 10).map(d => {
+              const fecha = fechaDesdeSerial(d.VencimientoPICKING);
+              return `${d.PRODUCTO} (${d.CODIGO}): ${d.ROTACIONFEFO} (vence: ${fecha})`;
+            }).join('\n')
           : '✅ No hay productos con rotación negativa.';
         break;
       }
@@ -61,7 +67,10 @@ module.exports = async function flujoInventario(incomingMsg, from, estadoConvers
         datos.forEach(d => d.stockTotal = (parseInt(d.PALETAS) || 0) + (parseInt(d.PICKING) || 0));
         const top = getTopN(datos, 'stockTotal', 10);
         resultado = '📊 Top 10 productos con más stock total:\n' +
-          top.map(d => `${d.PRODUCTO} (${d.CODIGO}): ${d.stockTotal} unidades`).join('\n');
+          top.map(d => {
+            const fecha = fechaDesdeSerial(d.VencimientoPICKING);
+            return `${d.PRODUCTO} (${d.CODIGO}): ${d.stockTotal} unidades (vence: ${fecha})`;
+          }).join('\n');
         break;
       }
 
@@ -81,14 +90,13 @@ module.exports = async function flujoInventario(incomingMsg, from, estadoConvers
         const sinRotacion = datos.filter(d => parseInt(d.ROTACIONFEFO) === 0);
         resultado = sinRotacion.length
           ? '⚠️ Productos sin rotación:\n' +
-            sinRotacion.slice(0, 10).map(d => `${d.PRODUCTO} (${d.CODIGO})`).join('\n')
+            sinRotacion.slice(0, 10).map(d => {
+              const fecha = fechaDesdeSerial(d.VencimientoPICKING);
+              return `${d.PRODUCTO} (${d.CODIGO}) (vence: ${fecha})`;
+            }).join('\n')
           : '✅ Todos los productos tienen rotación.';
         break;
       }
-
-   
-
-  
     }
 
     delete estadoConversacion[from];
@@ -103,9 +111,7 @@ module.exports = async function flujoInventario(incomingMsg, from, estadoConvers
       `3️⃣ Productos con rotación negativa\n` +
       `4️⃣ Productos con mayor stock total\n` +
       `5️⃣ Productos vencidos\n` +
-      `6️⃣ Productos sin rotación\n` +
-     
-      
+      `6️⃣ Productos sin rotación\n\n` +
       `Escribí un número del 1 al 9:`;
   }
 
