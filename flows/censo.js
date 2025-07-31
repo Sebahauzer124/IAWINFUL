@@ -1,6 +1,5 @@
 const censo = require('../models/censo');
 
-// Función para normalizar texto (elimina tildes y pasa a minúsculas)
 const normalizarTexto = texto =>
   texto.normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim().toLowerCase();
 
@@ -8,7 +7,6 @@ module.exports = async function flujoCenso(incomingMsg, from, estadoConversacion
   const msg = incomingMsg.toLowerCase().trim();
   let respuestaFinal = '';
 
-  // Paso inicial
   if (msg === 'censo') {
     estadoConversacion[from] = { paso: 'censo_esperando_tipo_inicio' };
     return '¿Querés saber sobre un *canal* o sobre un *PDV específico*?';
@@ -18,8 +16,7 @@ module.exports = async function flujoCenso(incomingMsg, from, estadoConversacion
   if (!estado || typeof estado.paso !== 'string' || !estado.paso.startsWith('censo')) return null;
 
   switch (estado.paso) {
-    // Elección entre canal o PDV
-    case 'censo_esperando_tipo_inicio':
+    case 'censo_esperando_tipo_inicio': {
       if (msg === 'canal') {
         estado.paso = 'censo_esperando_canal';
         return '¿Sobre qué *canal* querés saber?';
@@ -29,8 +26,8 @@ module.exports = async function flujoCenso(incomingMsg, from, estadoConversacion
       } else {
         return '⚠️ Por favor escribí *canal* o *pdv*';
       }
+    }
 
-    // Consulta de PDV por código
     case 'censo_esperando_codigo_pdv': {
       const codigoPDV = parseInt(msg);
       if (isNaN(codigoPDV)) return '⚠️ El código debe ser un número. Intentá de nuevo.';
@@ -53,7 +50,8 @@ module.exports = async function flujoCenso(incomingMsg, from, estadoConversacion
       const share = doc["SHARE CMQ"] ? (parseFloat(doc["SHARE CMQ"]) * 100).toFixed(2) + '%' : '0.00%';
       const shareSep24 = doc["SHARE CMQ sep24"] ? (parseFloat(doc["SHARE CMQ sep24"]) * 100).toFixed(2) + '%' : '0.00%';
       const shareAbril24 = doc["SHARE CMQ abril24"] ? (parseFloat(doc["SHARE CMQ abril24"]) * 100).toFixed(2) + '%' : '0.00%';
-      const vendedor= doc.vendedor || 'Desconocido';
+
+      const vendedor = doc.vendedor || 'Desconocido';
       const localidad = doc.LOCALIDAD || 'Desconocida';
 
       respuestaFinal = `📊 Datos del PDV ${codigoPDV} - ${doc.razon || 'Sin nombre'}:
@@ -73,57 +71,52 @@ module.exports = async function flujoCenso(incomingMsg, from, estadoConversacion
       return respuestaFinal;
     }
 
-    // Flujo para canal
-    case 'censo_esperando_canal':
+    case 'censo_esperando_canal': {
       estado.canal = incomingMsg.toUpperCase().trim();
-      estado.paso = 'censo_esperando_tipo_filtro';
-      return '¿Querés saber por *localidad* o por *vendedor*?';
+      estado.paso = 'censo_esperando_vendedor';
+      return '¿Sobre qué *vendedor* querés saber?';  // Aquí directamente pregunta por vendedor
+    }
 
-    case 'censo_esperando_tipo_filtro':
-      if (msg === 'localidad') {
-        estado.paso = 'censo_esperando_localidad';
-        return 'Indicá la *localidad* que querés analizar:';
-      } else if (msg === 'vendedor') {
-        estado.paso = 'censo_esperando_vendedor';
-        return 'Indicá el *nombre del vendedor* que querés analizar:';
-      } else {
-        return '⚠️ Por favor respondé *localidad* o *vendedor*';
-      }
-
-    // Guardamos el valor de localidad o vendedor
-    case 'censo_esperando_localidad':
     case 'censo_esperando_vendedor': {
-      const clave = estado.paso === 'censo_esperando_localidad' ? 'localidad' : 'vendedor';
-      estado[clave] = incomingMsg.trim();
-      estado.paso = `censo_esperando_tipo_${clave}`;
+      estado.vendedor = incomingMsg.trim();
+      estado.paso = 'censo_esperando_localidad';
+      return `¿Sobre qué *localidad* querés saber para el vendedor *${estado.vendedor}*?`;
+    }
+
+    case 'censo_esperando_localidad': {
+      estado.localidad = incomingMsg.trim();
+      estado.paso = 'censo_esperando_tipo_analisis';
       return '¿Querés saber dónde *crecemos* o dónde *caemos*?';
     }
 
-    // Procesamos el análisis de crecimiento o caída
-    case 'censo_esperando_tipo_localidad':
-    case 'censo_esperando_tipo_vendedor': {
+    case 'censo_esperando_tipo_analisis': {
       if (msg !== 'crecemos' && msg !== 'caemos') {
         return '⚠️ Por favor respondé *crecemos* o *caemos*';
       }
 
       const tipo = msg;
-      const esPorLocalidad = estado.paso.includes('localidad');
-      const filtro = esPorLocalidad ? 'LOCALIDAD' : 'vendedor';
-      const valorFiltro = estado[esPorLocalidad ? 'localidad' : 'vendedor'];
       const canalFiltro = estado.canal;
-      const valorNormalizado = normalizarTexto(valorFiltro);
+      const localidadNormalizada = normalizarTexto(estado.localidad);
+      const vendedorNormalizado = normalizarTexto(estado.vendedor);
 
-      const valoresDB = await censo.distinct(filtro, { canal: canalFiltro });
-      const coincidencia = valoresDB.find(v => normalizarTexto(v.toString()) === valorNormalizado);
+      const localidadesDB = await censo.distinct('LOCALIDAD', { canal: canalFiltro });
+      const vendedoresDB = await censo.distinct('vendedor', { canal: canalFiltro });
 
-      if (!coincidencia) {
-        const sugerencias = valoresDB
-          .filter(v => normalizarTexto(v.toString()).includes(valorNormalizado.slice(0, 4)))
-          .slice(0, 5);
-        return `⚠️ No encontré datos para "${valorFiltro}" en el canal "${canalFiltro}". ¿Quisiste decir alguna de estas?\n\n${sugerencias.join('\n')}`;
+      const localidadCoincide = localidadesDB.find(v => normalizarTexto(v.toString()) === localidadNormalizada);
+      const vendedorCoincide = vendedoresDB.find(v => normalizarTexto(v.toString()) === vendedorNormalizado);
+
+      if (!localidadCoincide || !vendedorCoincide) {
+        return `❌ No se encontraron coincidencias para:
+Localidad: ${estado.localidad}
+Vendedor: ${estado.vendedor}`;
       }
 
-      const datos = await censo.find({ [filtro]: coincidencia, canal: canalFiltro });
+      const datos = await censo.find({
+        canal: canalFiltro,
+        LOCALIDAD: localidadCoincide,
+        vendedor: vendedorCoincide
+      });
+
       const puntos = datos.filter(d => parseFloat(d['volumen 2024']) > 0);
 
       let diffs = puntos.map(d => {
@@ -162,11 +155,11 @@ module.exports = async function flujoCenso(incomingMsg, from, estadoConversacion
 
       if (diffs.length === 0) {
         delete estadoConversacion[from];
-        return `❌ No se encontraron puntos que ${tipo} en "${valorFiltro}" para el canal "${canalFiltro}".`;
+        return `❌ No se encontraron puntos que ${tipo} en la localidad "${estado.localidad}" y vendedor "${estado.vendedor}" para el canal "${canalFiltro}".`;
       }
 
       const top5 = diffs.slice(0, 5);
-      respuestaFinal = `📊 Top 5 puntos donde ${tipo} en "${valorFiltro}" (Canal: ${canalFiltro}):\n\n` +
+      const respuesta = `📊 Top 5 puntos donde ${tipo} en "${estado.localidad}" con promotor "${estado.vendedor}" (Canal: ${canalFiltro}):\n\n` +
         top5.map(p =>
           `• ${p.pdv}
   ↪ Diferencia: ${p.diferencia.toFixed(2)} hL
@@ -180,7 +173,7 @@ module.exports = async function flujoCenso(incomingMsg, from, estadoConversacion
         ).join('\n\n');
 
       delete estadoConversacion[from];
-      return respuestaFinal;
+      return respuesta;
     }
 
     default:
