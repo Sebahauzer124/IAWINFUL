@@ -7,7 +7,7 @@ module.exports = async function flujoCenso(incomingMsg, from, estadoConversacion
   const msg = incomingMsg.toLowerCase().trim();
   let respuestaFinal = '';
 
-  if (msg === 'censo') {
+  if (msg === 'salidas') {
     estadoConversacion[from] = { paso: 'censo_esperando_tipo_inicio' };
     return '¿Querés saber sobre un *canal* o sobre un *PDV específico*?';
   }
