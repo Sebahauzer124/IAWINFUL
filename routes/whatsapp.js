@@ -21,7 +21,7 @@ router.post('/', async (req, res) => {
     respuesta = await flujoSku(msg, from, estadoConversacion);
   } else if (estado?.paso?.startsWith('morce')) {
     respuesta = await handleMorce(msg, from, estadoConversacion);
-  } else if (estado?.paso?.startsWith('salidas al mercado')) {
+  } else if (estado?.paso?.startsWith('salidas')) {
     respuesta = await handleCenso(msg, from, estadoConversacion);
   } else if (estado?.paso?.startsWith('pdv')) {
     respuesta = await handlePDV(msg, from, estadoConversacion);
