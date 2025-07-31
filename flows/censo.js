@@ -74,7 +74,7 @@ module.exports = async function flujoCenso(incomingMsg, from, estadoConversacion
     case 'censo_esperando_canal': {
       estado.canal = incomingMsg.toUpperCase().trim();
       estado.paso = 'censo_esperando_vendedor';
-      return '¿Sobre qué *vendedor* querés saber?';  // Aquí directamente pregunta por vendedor
+      return '¿Sobre qué *numero de vendedor* querés saber?';  // Aquí directamente pregunta por vendedor
     }
 
     case 'censo_esperando_vendedor': {
