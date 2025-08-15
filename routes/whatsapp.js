@@ -11,6 +11,8 @@ const flujoSku = require('../flows/sku');
 const estadoConversacion = {};
 
 router.post('/', async (req, res) => {
+  console.log('Body recibido:', req.body);
+
   const from = req.body.From;
   const msg = req.body.Body?.toLowerCase().trim();
 
