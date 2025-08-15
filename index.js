@@ -5,6 +5,8 @@ const mongoose = require('mongoose');  // <-- Agregá mongoose
 const app = express();
 const whatsappRoute = require('./routes/whatsapp');
 
+
+app.use(express.json()); 
 app.use(bodyParser.urlencoded({ extended: false }));
 app.use('/webhook', whatsappRoute);
 
