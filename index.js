@@ -27,3 +27,4 @@ mongoose.connect(process.env.MONGO_URI, {
   console.error('❌ Error conectando a MongoDB:', err);
   process.exit(1);  // Salir si no puede conectar
 });
+//escribo
