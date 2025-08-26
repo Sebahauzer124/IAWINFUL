@@ -55,8 +55,8 @@ module.exports = async function flujoCenso(incomingMsg, from, estadoConversacion
       const shareAbril24 = doc["SHARE CMQ abril24"] ? (parseFloat(doc["SHARE CMQ abril24"]) * 100).toFixed(2) + '%' : '0.00%';
 
       delete estadoConversacion[from];
-      return `📊 Datos del PDV ${codigoPDV} - ${doc.razon || 'Sin nombre'}:
 
+      return `📊 Datos del PDV ${codigoPDV} - ${doc.razon || 'Sin nombre'}:
 ↪ Diferencia: ${diferencia.toFixed(2)} hL
 ↪ Maps: ${maps}
 ↪ CCU abril25: ${ccu}
@@ -80,6 +80,7 @@ module.exports = async function flujoCenso(incomingMsg, from, estadoConversacion
       const vendedores = await censo.distinct('vendedor', { canal: canalSeleccionado });
       estado.vendedores = vendedores;
       estado.paso = 'censo_esperando_vendedor';
+
       return `📋 Vendedores en canal "${canalSeleccionado}":\n` +
         vendedores.map((v, i) => `⚪ ${i + 1} - ${v}`).join("\n");
     }
@@ -98,6 +99,7 @@ module.exports = async function flujoCenso(incomingMsg, from, estadoConversacion
       });
       estado.localidades = localidades;
       estado.paso = 'censo_esperando_localidad';
+
       return `📋 Localidades para vendedor "${vendedorSeleccionado}":\n` +
         localidades.map((l, i) => `⚪ ${i + 1} - ${l}`).join("\n");
     }
@@ -109,6 +111,7 @@ module.exports = async function flujoCenso(incomingMsg, from, estadoConversacion
       }
       estado.localidad = estado.localidades[index];
       estado.paso = 'censo_esperando_tipo_analisis';
+
       return "¿Querés saber dónde *crecemos* o dónde *caemos*?\n\n1️⃣ Crecemos\n2️⃣ Caemos";
     }
 

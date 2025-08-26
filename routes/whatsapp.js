@@ -11,27 +11,34 @@ const estadoConversacion = {};
 
 router.post('/', async (req, res) => {
   try {
-    // Tomamos los datos del body con valores por defecto
-    const from = req.body.From || 'desconocido';
-    const incomingMsg = req.body.Body || '';
+    const from = req.body.From || req.body.from || 'desconocido';
+    const incomingMsg = req.body.Body || req.body.message || '';
     const msg = incomingMsg.toString().trim().toLowerCase();
 
     console.log('Body recibido:', req.body);
 
     let respuesta = null;
-    const estado = estadoConversacion[from];
+    let estado = estadoConversacion[from];
 
-    // Determinar qué flujo ejecutar según el estado
-    if (estado?.paso?.startsWith('sku')) {
+    // -----------------------------
+    // Lógica principal por flujo
+    // -----------------------------
+
+    // Flujo PDV
+    if (estado?.paso?.startsWith('pdv')) {
+      respuesta = await handlePDV(msg, from, estadoConversacion);
+
+    // Otros flujos según estado
+    } else if (estado?.paso?.startsWith('sku')) {
       respuesta = await flujoSku(msg, from, estadoConversacion);
     } else if (estado?.paso?.startsWith('morce')) {
       respuesta = await handleMorce(msg, from, estadoConversacion);
     } else if (estado?.paso?.startsWith('salidas')) {
       respuesta = await flujoCenso(msg, from, estadoConversacion);
-    } else if (estado?.paso?.startsWith('pdv')) {
-      respuesta = await handlePDV(msg, from, estadoConversacion);
+
+    // Si no hay estado, probamos todos los flujos
     } else {
-      // Si no hay estado, probamos todos los flujos
+      // Probamos los flujos en orden
       respuesta =
         (await flujoCenso(msg, from, estadoConversacion)) ||
         (await handleMorce(msg, from, estadoConversacion)) ||
@@ -47,12 +54,26 @@ router.post('/', async (req, res) => {
 
     console.log(`[RESPUESTA FINAL] Para ${from}:`, respuesta);
 
-    res.set('Content-Type', 'text/xml');
-    res.send(`<Response><Message>${respuesta}</Message></Response>`);
+    // Detectamos si viene de Twilio o de otro cliente
+    const userAgent = req.headers['user-agent'] || '';
+    if (userAgent.includes('Twilio')) {
+      res.set('Content-Type', 'text/xml');
+      res.send(`<Response><Message>${respuesta}</Message></Response>`);
+    } else {
+      res.set('Content-Type', 'application/json');
+      res.send({ respuesta });
+    }
+
   } catch (error) {
     console.error('❌ Error en webhook:', error);
-    res.set('Content-Type', 'text/xml');
-    res.status(500).send(`<Response><Message>Ocurrió un error en el sistema. Intente nuevamente.</Message></Response>`);
+    const userAgent = req.headers['user-agent'] || '';
+    const errorMsg = 'Ocurrió un error en el sistema. Intente nuevamente.';
+    if (userAgent.includes('Twilio')) {
+      res.set('Content-Type', 'text/xml');
+      res.status(500).send(`<Response><Message>${errorMsg}</Message></Response>`);
+    } else {
+      res.status(500).json({ respuesta: errorMsg });
+    }
   }
 });
 
